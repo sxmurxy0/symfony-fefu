@@ -16,5 +16,10 @@ services:
     App\:
         resource: '../src/'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    App\Service\CSVService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+    
+    App\Repository\HouseRepository:
+        arguments:
+            - '@App\Service\CSVService'
