@@ -18,7 +18,7 @@ services:
 
     App\Service\CSVService:
         arguments:
-            $projectDir: '%kernel.project_dir%'
+            $csvDir: '%kernel.project_dir%/var/data/'
     
     App\Repository\HouseRepository:
         arguments:

@@ -2,24 +2,22 @@
 
 namespace App\Service;
 
+use Symfony\Component\Filesystem\Exception\IOException;
+
 class CSVService {
 
-    private string $csvDir;
-
     public function __construct(
-        string $projectDir
-    ) {
-        $this->csvDir = $projectDir.'/var/data/';
-    }
+        private string $csvDir
+    ) {}
 
     public function readCSVData(string $filename): array {
         $path = $this->csvDir.$filename;
 
         if (!file_exists($path))
-            throw new \RuntimeException("File $filename doesn't exists!");
+            throw new IOException("File $filename doesn't exists!");
 
         if (($handle = fopen($path, 'r')) === false)
-            throw new \RuntimeException("Error during opening file $filename!");
+            throw new IOException("Error during opening file $filename!");
         
         $data = [];
         while (($row = fgetcsv($handle)) !== false) {
@@ -34,10 +32,10 @@ class CSVService {
         $path = $this->csvDir.$filename;
         
         if (!file_exists($path)) 
-            throw new \RuntimeException("File $filename doesn't exists!");
+            throw new IOException("File $filename doesn't exists!");
 
         if (($handle = fopen($path, 'w')) === false)
-            throw new \RuntimeException("Error during opening file $filename!");
+            throw new IOException("Error during opening file $filename!");
         
         foreach ($data as $row) {
             fputcsv($handle, $row);
@@ -50,10 +48,10 @@ class CSVService {
         $path = $this->csvDir.$filename;
 
         if (!file_exists($path)) 
-            throw new \RuntimeException("File $filename doesn't exists!");
+            throw new IOException("File $filename doesn't exists!");
         
         if (($handle = fopen($path, 'a')) === false)
-            throw new \RuntimeException("Error during opening file $filename!");
+            throw new IOException("Error during opening file $filename!");
 
         foreach ($data as $row) {
             fputcsv($handle, $row);
