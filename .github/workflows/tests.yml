@@ -1,0 +1,71 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+
+    env:
+      APP_ENV: test
+      APP_SECRET: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b
+      APP_DEBUG: 0
+      DATABASE_URL: "postgresql://postgres:qwerty@localhost:5432/database_test?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+      DEFAULT_URI: "http://localhost"
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: database_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qwerty
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_pgsql, dom, filter, gd, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction --optimize-autoloader
+
+      - name: Clear cache
+        run: php bin/console cache:clear --env=test
+
+      - name: Create test database
+        run: |
+          php bin/console doctrine:database:create --env=test
+          php bin/console doctrine:schema:create --env=test
+
+      - name: Run PHPUnit tests
+        run: php bin/phpunit --testdox
