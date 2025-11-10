@@ -1,17 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\Mapping as ORM;
 use JsonSerializable;
+use Override;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
-class User implements JsonSerializable {
-    
+class User implements JsonSerializable
+{
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
 
@@ -21,12 +24,15 @@ class User implements JsonSerializable {
     #[ORM\OneToMany(targetEntity: Booking::class, mappedBy: 'user', cascade: ['remove'])]
     private Collection $bookings;
 
-    public function __construct(string $phoneNumber) {
+    public function __construct(string $phoneNumber)
+    {
         $this->phoneNumber = $phoneNumber;
         $this->bookings = new ArrayCollection();
     }
 
-    public function jsonSerialize(): array {
+    #[Override]
+    public function jsonSerialize(): array
+    {
         return [
             'id' => $this->id,
             'phone_number' => $this->phoneNumber,
@@ -34,25 +40,30 @@ class User implements JsonSerializable {
         ];
     }
 
-    public function getId(): ?int {
+    public function getId(): ?int
+    {
         return $this->id;
     }
 
-    public function getPhoneNumber(): string {
+    public function getPhoneNumber(): string
+    {
         return $this->phoneNumber;
     }
 
-    public function setPhoneNumber(string $phoneNumber): static {
+    public function setPhoneNumber(string $phoneNumber): static
+    {
         $this->phoneNumber = $phoneNumber;
 
         return $this;
     }
 
-    public function getBookings(): Collection {
+    public function getBookings(): Collection
+    {
         return $this->bookings;
     }
 
-    public function addBooking(Booking $booking): static {
+    public function addBooking(Booking $booking): static
+    {
         if (!$this->bookings->contains($booking)) {
             $this->bookings->add($booking);
             $booking->setUser($this);
@@ -61,7 +72,8 @@ class User implements JsonSerializable {
         return $this;
     }
 
-    public function removeBooking(Booking $booking): static {
+    public function removeBooking(Booking $booking): static
+    {
         if ($this->bookings->removeElement($booking)) {
             if ($booking->getUser() === $this) {
                 $booking->setUser(null);
@@ -70,5 +82,4 @@ class User implements JsonSerializable {
 
         return $this;
     }
-
 }

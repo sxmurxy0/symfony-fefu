@@ -1,4 +1,4 @@
-name: Tests
+name: Run Tests
 
 on:
   push:
@@ -12,8 +12,6 @@ jobs:
 
     env:
       APP_ENV: test
-      APP_SECRET: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b
-      APP_DEBUG: 0
       DATABASE_URL: "postgresql://postgres:qwerty@localhost:5432/database_test?serverVersion=17&charset=utf8"
       MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
       DEFAULT_URI: "http://localhost"
@@ -41,31 +39,24 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_pgsql, dom, filter, gd, json
+          extensions: ctype, iconv, intl, pdo_pgsql
           coverage: none
           tools: composer:v2
-
-      - name: Get Composer Cache Directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache Composer dependencies
         uses: actions/cache@v3
         with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-php-8.4-composer-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction --optimize-autoloader
-
-      - name: Clear cache
-        run: php bin/console cache:clear --env=test
+        run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Create test database
         run: |
-          php bin/console doctrine:database:create --env=test
+          php bin/console doctrine:database:create --if-not-exists --env=test
           php bin/console doctrine:schema:create --env=test
 
       - name: Run PHPUnit tests
-        run: php bin/phpunit --testdox
+        run: php bin/phpunit
