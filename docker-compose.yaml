@@ -4,30 +4,27 @@ services:
       context: ./docker/nginx
     container_name: nginx-container
     ports:
-        - "8080:80"
+      - 8080:80
     volumes:
-        - .:/var/www/project
+      - .:/var/www/project
     depends_on:
-        - php
-        - postgres
+      - php
   php:
     build: 
       context: ./docker/php
     container_name: php-container
-    env_file:
-      - .env.local
     volumes:
       - .:/var/www/project
+    depends_on:
+      - postgres
   postgres:
     build:
       context: ./docker/postgres
     container_name: postgres-container
-    env_file:
-      - .env.local
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
 

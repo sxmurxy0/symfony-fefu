@@ -1,18 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
+use App\Entity\House;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use App\Entity\House;
 
-class HouseRepository extends ServiceEntityRepository {
-
-    public function __construct(ManagerRegistry $registry) {
+class HouseRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
         parent::__construct($registry, House::class);
     }
 
-    public function findAvailable(): array {
+    public function findAvailable(): array
+    {
         $bookedHousesId = $this->getEntityManager()->createQuery(
             '
             SELECT 
@@ -22,11 +26,11 @@ class HouseRepository extends ServiceEntityRepository {
         )->getArrayResult();
 
         $bookedHousesId = array_column($bookedHousesId, 1);
-        
+
         if (!$bookedHousesId) {
             return $this->findAll();
         }
-        
+
         $query = $this->getEntityManager()->createQuery(
             '
             SELECT
@@ -39,7 +43,8 @@ class HouseRepository extends ServiceEntityRepository {
         return $query->getResult();
     }
 
-    public function isHouseAvailable(int $houseId): bool {
+    public function isHouseAvailable(int $houseId): bool
+    {
         $query = $this->getEntityManager()->createQuery(
             '
             SELECT
@@ -49,7 +54,6 @@ class HouseRepository extends ServiceEntityRepository {
             '
         )->setParameter('house_id', $houseId);
 
-        return $query->getSingleScalarResult() == 0;
+        return 0 == $query->getSingleScalarResult();
     }
-
 }
