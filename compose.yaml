@@ -14,12 +14,16 @@ services:
     build: 
       context: ./docker/php
     container_name: php-container
+    env_file:
+      - .env.local
     volumes:
       - .:/var/www/project
   postgres:
     build:
       context: ./docker/postgres
     container_name: postgres-container
+    env_file:
+      - .env.local
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

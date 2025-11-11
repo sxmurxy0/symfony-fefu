@@ -3,77 +3,56 @@
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Repository\HouseRepository;
-use Symfony\Component\Filesystem\Exception\IOException;
+use App\Entity\House;
 
 class HouseController extends AbstractController {
 
     public function __construct(
+        private EntityManagerInterface $em, 
         private HouseRepository $houseRepository
     ) {}
 
-    #[Route('/', name: 'home')]
-    public function home(): Response {
-        return new Response("Hello world!");
+    #[Route('/houses', methods: ['GET'])]
+    public function getAllHouses(): Response {
+        $houses = $this->houseRepository->findAll();
+
+        return $this->json($houses, Response::HTTP_OK);
     }
 
-    #[Route('/api/houses', methods: ['GET'])]
+    #[Route('/houses/available', methods: ['GET'])]
     public function getAvailableHouses(): Response {
-        try {
-            $houses = $this->houseRepository->getAvailableHouses();
-        } catch (\RuntimeException $ex) {
-            throw new HttpException(500, $ex->getMessage());
-        }
+        $houses = $this->houseRepository->findAvailable();
 
-        return new JsonResponse($houses, 200);
+        return $this->json($houses, Response::HTTP_OK);
     }
 
-    #[Route('/api/booking', methods: ['POST'])]
-    public function createBooking(Request $request): Response {
-        $requestData = json_decode($request->getContent(), true);
-        if (!isset($requestData['houseId']) || !isset($requestData['phoneNumber'])) {
-            throw new HttpException(400, 'Missing required params: houseId or phoneNumber!');
+    #[Route('/houses/create', methods: ['POST'])]
+    public function createHouse(Request $request): Response {
+        $requestData = $request->toArray();
+        if (!isset($requestData['sleeping_places'])) {
+            throw new HttpException(Response::HTTP_BAD_REQUEST, 
+                'Missing required param: sleeping_places!');
         }
+
+        $house = new House($requestData['sleeping_places']);
+        $this->em->persist($house);
+        $this->em->flush();
+
+        return $this->json($house, Response::HTTP_OK);
+    }
+
+    #[Route('/houses/{id}', methods: ['DELETE'])]
+    public function deleteHouse(House $house): Response {
+        $this->em->remove($house);
+        $this->em->flush();
         
-        try {
-            $this->houseRepository->createBooking(
-                $requestData['houseId'], 
-                $requestData['phoneNumber'], 
-                $requestData['comment'] ?? ''
-            );
-        } catch (IOException $ex) {
-            throw new HttpException(500, $ex->getMessage());
-        } catch (\RuntimeException $ex) {
-            throw new HttpException(400, $ex->getMessage());
-        }
-    
-        return new JsonResponse(['status' => true], 200);
-    }
-
-    #[Route('/api/booking/{id}', methods: ['PATCH'])]
-    public function editBookingComment(string $id, Request $request): Response {
-        $requestData = json_decode($request->getContent(), true);
-        if (!isset($requestData['comment'])) {
-            throw new HttpException(400, 'Missing required param: comment!');
-        }
-
-        try {
-            $this->houseRepository->editBookingComment(
-                $id,
-                $requestData['comment']
-            );
-        } catch (IOException $ex) {
-            throw new HttpException(500, $ex->getMessage());
-        } catch (\RuntimeException $ex) {
-            throw new HttpException(400, $ex->getMessage());
-        }
-
-        return new JsonResponse(['status' => true], 200);
+        return $this->json([], Response::HTTP_OK);
     }
 
 }
