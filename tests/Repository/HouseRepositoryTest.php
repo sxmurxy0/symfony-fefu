@@ -28,23 +28,17 @@ class HouseRepositoryTest extends KernelTestCase
     private function clearDatabase(): void
     {
         $connection = $this->entityManager->getConnection();
+        $connection->executeStatement('DELETE FROM access_tokens');
         $connection->executeStatement('DELETE FROM bookings');
         $connection->executeStatement('DELETE FROM houses');
         $connection->executeStatement('DELETE FROM users');
     }
 
-    private function createTestHouse(int $sleepingPlaces = 2): House
-    {
-        $house = new House($sleepingPlaces);
-        $this->entityManager->persist($house);
-        $this->entityManager->flush();
-
-        return $house;
-    }
-
     private function createTestUser(string $phoneNumber = '+79111111111'): User
     {
-        $user = new User($phoneNumber);
+        $user = new User();
+        $user->setPhoneNumber($phoneNumber);
+        $user->setPassword('password');
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
@@ -53,17 +47,71 @@ class HouseRepositoryTest extends KernelTestCase
 
     private function createTestBooking(User $user, House $house, string $comment = 'Test comment'): Booking
     {
-        $booking = new Booking($user, $house, $comment);
+        $booking = new Booking();
+        $booking->setUser($user);
+        $booking->setHouse($house);
+        $booking->setComment($comment);
         $this->entityManager->persist($booking);
         $this->entityManager->flush();
 
         return $booking;
     }
 
+    public function testCreate(): void
+    {
+        $sleepingPlaces = 3;
+
+        $house = $this->houseRepository->create($sleepingPlaces);
+
+        $this->assertInstanceOf(House::class, $house);
+        $this->assertNotNull($house->getId());
+        $this->assertEquals($sleepingPlaces, $house->getSleepingPlaces());
+
+        $foundHouse = $this->houseRepository->find($house->getId());
+        $this->assertNotNull($foundHouse);
+        $this->assertEquals($house->getId(), $foundHouse->getId());
+    }
+
+    public function testRemove(): void
+    {
+        $house = $this->houseRepository->create(2);
+
+        $houseId = $house->getId();
+
+        $this->houseRepository->remove($house);
+
+        $removedHouse = $this->houseRepository->find($houseId);
+        $this->assertNull($removedHouse);
+    }
+
+    public function testRemoveNull(): void
+    {
+        $this->houseRepository->remove(null);
+        $this->assertTrue(true);
+    }
+
+    public function testRemoveById(): void
+    {
+        $house = $this->houseRepository->create(2);
+
+        $houseId = $house->getId();
+
+        $this->houseRepository->removeById($houseId);
+
+        $removedHouse = $this->houseRepository->find($houseId);
+        $this->assertNull($removedHouse);
+    }
+
+    public function testRemoveByIdNotFound(): void
+    {
+        $this->houseRepository->removeById(9999);
+        $this->assertTrue(true);
+    }
+
     public function testFindAvailableWhenNoBookings(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
+        $house1 = $this->houseRepository->create(2);
+        $house2 = $this->houseRepository->create(4);
 
         $availableHouses = $this->houseRepository->findAvailable();
 
@@ -74,8 +122,8 @@ class HouseRepositoryTest extends KernelTestCase
 
     public function testFindAvailableWithBookings(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
+        $house1 = $this->houseRepository->create(2);
+        $house2 = $this->houseRepository->create(4);
         $user = $this->createTestUser();
 
         $this->createTestBooking($user, $house1);
@@ -89,8 +137,8 @@ class HouseRepositoryTest extends KernelTestCase
 
     public function testFindAvailableWhenAllBooked(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
+        $house1 = $this->houseRepository->create(2);
+        $house2 = $this->houseRepository->create(4);
         $user = $this->createTestUser();
 
         $this->createTestBooking($user, $house1);
@@ -101,31 +149,53 @@ class HouseRepositoryTest extends KernelTestCase
         $this->assertCount(0, $availableHouses);
     }
 
-    public function testIsHouseAvailableWhenAvailable(): void
+    public function testIsAvailableWhenAvailable(): void
     {
-        $house = $this->createTestHouse();
+        $house = $this->houseRepository->create(2);
 
-        $isAvailable = $this->houseRepository->isHouseAvailable($house->getId());
+        $isAvailable = $this->houseRepository->isAvailable($house->getId());
 
         $this->assertTrue($isAvailable);
     }
 
-    public function testIsHouseAvailableWhenBooked(): void
+    public function testIsAvailableWhenBooked(): void
     {
-        $house = $this->createTestHouse();
+        $house = $this->houseRepository->create(2);
         $user = $this->createTestUser();
 
         $this->createTestBooking($user, $house);
 
-        $isAvailable = $this->houseRepository->isHouseAvailable($house->getId());
+        $isAvailable = $this->houseRepository->isAvailable($house->getId());
 
         $this->assertFalse($isAvailable);
     }
 
-    public function testIsHouseAvailableWithNonExistentHouse(): void
+    public function testIsAvailableWithNonExistentHouse(): void
     {
-        $isAvailable = $this->houseRepository->isHouseAvailable(9999);
+        $isAvailable = $this->houseRepository->isAvailable(9999);
 
         $this->assertTrue($isAvailable);
+    }
+
+    public function testMultipleHousesMixedAvailability(): void
+    {
+        $house1 = $this->houseRepository->create(2);
+        $house2 = $this->houseRepository->create(3);
+        $house3 = $this->houseRepository->create(4);
+        $user = $this->createTestUser();
+
+        $this->createTestBooking($user, $house1);
+        $this->createTestBooking($user, $house3);
+
+        $availableHouses = $this->houseRepository->findAvailable();
+
+        $this->assertCount(1, $availableHouses);
+        $this->assertContains($house2, $availableHouses);
+        $this->assertNotContains($house1, $availableHouses);
+        $this->assertNotContains($house3, $availableHouses);
+
+        $this->assertFalse($this->houseRepository->isAvailable($house1->getId()));
+        $this->assertTrue($this->houseRepository->isAvailable($house2->getId()));
+        $this->assertFalse($this->houseRepository->isAvailable($house3->getId()));
     }
 }
