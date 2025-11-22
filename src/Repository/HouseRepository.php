@@ -10,9 +10,35 @@ use Doctrine\Persistence\ManagerRegistry;
 
 class HouseRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        private ManagerRegistry $registry
+    ) {
         parent::__construct($registry, House::class);
+    }
+
+    public function create(int $sleepingPlaces): House
+    {
+        $house = new House();
+        $house->setSleepingPlaces($sleepingPlaces);
+
+        $this->getEntityManager()->persist($house);
+        $this->getEntityManager()->flush();
+
+        return $house;
+    }
+
+    public function remove(?House $house): void
+    {
+        if ($house) {
+            $this->getEntityManager()->remove($house);
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function removeById(int $id): void
+    {
+        $house = $this->find($id);
+        $this->remove($house);
     }
 
     public function findAvailable(): array
@@ -43,7 +69,7 @@ class HouseRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function isHouseAvailable(int $houseId): bool
+    public function isAvailable(int $id): bool
     {
         $query = $this->getEntityManager()->createQuery(
             '
@@ -52,7 +78,7 @@ class HouseRepository extends ServiceEntityRepository
             FROM App\Entity\Booking AS booking
             WHERE booking.house = :house_id
             '
-        )->setParameter('house_id', $houseId);
+        )->setParameter('house_id', $id);
 
         return 0 == $query->getSingleScalarResult();
     }
