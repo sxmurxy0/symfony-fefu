@@ -10,8 +10,9 @@ use Doctrine\Persistence\ManagerRegistry;
 
 class HouseRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        private ManagerRegistry $registry
+    ) {
         parent::__construct($registry, House::class);
     }
 
@@ -43,7 +44,7 @@ class HouseRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function isHouseAvailable(int $houseId): bool
+    public function isAvailable(int $id): bool
     {
         $query = $this->getEntityManager()->createQuery(
             '
@@ -52,7 +53,7 @@ class HouseRepository extends ServiceEntityRepository
             FROM App\Entity\Booking AS booking
             WHERE booking.house = :house_id
             '
-        )->setParameter('house_id', $houseId);
+        )->setParameter('house_id', $id);
 
         return 0 == $query->getSingleScalarResult();
     }

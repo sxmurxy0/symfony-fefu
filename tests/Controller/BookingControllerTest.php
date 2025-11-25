@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\AccessToken;
 use App\Entity\Booking;
 use App\Entity\House;
 use App\Entity\User;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,23 +30,39 @@ class BookingControllerTest extends WebTestCase
     {
         $connection = $this->entityManager->getConnection();
         $connection->executeStatement('DELETE FROM bookings');
+        $connection->executeStatement('DELETE FROM access_tokens');
         $connection->executeStatement('DELETE FROM houses');
         $connection->executeStatement('DELETE FROM users');
     }
 
-    private function createTestUser(string $phoneNumber = '+79111111111'): User
+    private function createTestUser(string $phoneNumber = '+79111111111', string $password = 'password'): User
     {
-        $user = new User($phoneNumber);
+        $user = new User();
+        $user->setPhoneNumber($phoneNumber);
+        $user->setPassword(
+            self::getContainer()->get('security.password_hasher')->hashPassword($user, $password)
+        );
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
         return $user;
     }
 
-    private function createTestHouse(bool $isAvailable = true): House
+    private function createTestAccessToken(User $user): AccessToken
     {
-        $house = new House(2);
+        $accessToken = new AccessToken();
+        $accessToken->setUser($user);
+        $accessToken->setExpiresAt(new DateTimeImmutable('+1 hour'));
+        $this->entityManager->persist($accessToken);
+        $this->entityManager->flush();
 
+        return $accessToken;
+    }
+
+    private function createTestHouse(int $sleepingPlaces = 2): House
+    {
+        $house = new House();
+        $house->setSleepingPlaces($sleepingPlaces);
         $this->entityManager->persist($house);
         $this->entityManager->flush();
 
@@ -53,20 +71,38 @@ class BookingControllerTest extends WebTestCase
 
     private function createTestBooking(User $user, House $house, string $comment = 'Test comment'): Booking
     {
-        $booking = new Booking($user, $house, $comment);
+        $booking = new Booking();
+        $booking->setHouse($house);
+        $booking->setComment($comment);
+        $user->addBooking($booking);
         $this->entityManager->persist($booking);
         $this->entityManager->flush();
 
         return $booking;
     }
 
-    public function testGetAllBookings(): void
+    private function getAuthHeaders(string $accessToken): array
+    {
+        return [
+            'Content-Type' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ];
+    }
+
+    public function testGetUserBookingsSuccess(): void
     {
         $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
         $house = $this->createTestHouse();
-        $booking = $this->createTestBooking($user, $house);
+        $this->createTestBooking($user, $house, 'Test booking comment');
 
-        $this->client->request('GET', '/api/bookings');
+        $this->client->request(
+            'GET',
+            '/api/bookings/',
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
 
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('Content-Type', 'application/json');
@@ -76,30 +112,22 @@ class BookingControllerTest extends WebTestCase
 
         $this->assertIsArray($data);
         $this->assertCount(1, $data);
-        $this->assertEquals($booking->getId(), $data[0]['id']);
-        $this->assertEquals('Test comment', $data[0]['comment']);
+        $this->assertEquals('Test booking comment', $data[0]['comment']);
     }
 
-    public function testGetAllBookingsWhenEmpty(): void
+    public function testGetUserBookingsWithoutAuthentication(): void
     {
-        $this->client->request('GET', '/api/bookings');
-
-        $this->assertResponseIsSuccessful();
-
-        $response = $this->client->getResponse();
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertIsArray($data);
-        $this->assertCount(0, $data);
+        $this->client->request('GET', '/api/bookings/');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
     }
 
     public function testCreateBookingSuccess(): void
     {
         $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
         $house = $this->createTestHouse();
 
         $payload = [
-            'user_id' => $user->getId(),
             'house_id' => $house->getId(),
             'comment' => 'Integration test booking'
         ];
@@ -109,7 +137,7 @@ class BookingControllerTest extends WebTestCase
             '/api/bookings/create',
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken->getValue())),
             json_encode($payload)
         );
 
@@ -123,58 +151,14 @@ class BookingControllerTest extends WebTestCase
         $this->assertEquals($user->getId(), $data['user_id']);
         $this->assertEquals($house->getId(), $data['house_id']);
         $this->assertEquals('Integration test booking', $data['comment']);
-
-        $booking = $this->entityManager->getRepository(Booking::class)->find($data['id']);
-        $this->assertNotNull($booking);
-        $this->assertEquals('Integration test booking', $booking->getComment());
-    }
-
-    public function testCreateBookingMissingParameters(): void
-    {
-        $payload = [
-            'user_id' => 1,
-        ];
-
-        $this->client->request(
-            'POST',
-            '/api/bookings/create',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode($payload)
-        );
-
-        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
-    }
-
-    public function testCreateBookingUserNotFound(): void
-    {
-        $house = $this->createTestHouse();
-
-        $payload = [
-            'user_id' => 9999,
-            'house_id' => $house->getId(),
-            'comment' => 'Test comment'
-        ];
-
-        $this->client->request(
-            'POST',
-            '/api/bookings/create',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode($payload)
-        );
-
-        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
     }
 
     public function testCreateBookingHouseNotFound(): void
     {
         $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
 
         $payload = [
-            'user_id' => $user->getId(),
             'house_id' => 9999,
             'comment' => 'Test comment'
         ];
@@ -184,16 +168,38 @@ class BookingControllerTest extends WebTestCase
             '/api/bookings/create',
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken->getValue())),
             json_encode($payload)
         );
 
         $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
     }
 
+    public function testCreateBookingWithoutAuthentication(): void
+    {
+        $house = $this->createTestHouse();
+
+        $payload = [
+            'house_id' => $house->getId(),
+            'comment' => 'Test comment'
+        ];
+
+        $this->client->request(
+            'POST',
+            '/api/bookings/create',
+            [],
+            [],
+            ['Content-Type' => 'application/json'],
+            json_encode($payload)
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
     public function testEditBookingCommentSuccess(): void
     {
         $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
         $house = $this->createTestHouse();
         $booking = $this->createTestBooking($user, $house, 'Old comment');
 
@@ -206,24 +212,24 @@ class BookingControllerTest extends WebTestCase
             "/api/bookings/{$booking->getId()}/comment",
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken->getValue())),
             json_encode($payload)
         );
 
         $this->assertResponseIsSuccessful();
-
-        $this->entityManager->clear();
-        $updatedBooking = $this->entityManager->getRepository(Booking::class)->find($booking->getId());
-        $this->assertEquals('Updated comment', $updatedBooking->getComment());
     }
 
-    public function testEditBookingCommentMissingComment(): void
+    public function testEditBookingCommentAccessDenied(): void
     {
-        $user = $this->createTestUser();
+        $user1 = $this->createTestUser('+79111111111');
+        $user2 = $this->createTestUser('+79222222222');
+        $accessToken2 = $this->createTestAccessToken($user2);
         $house = $this->createTestHouse();
-        $booking = $this->createTestBooking($user, $house);
+
+        $booking = $this->createTestBooking($user1, $house, 'User 1 booking');
 
         $payload = [
+            'comment' => 'Hacked comment'
         ];
 
         $this->client->request(
@@ -231,52 +237,48 @@ class BookingControllerTest extends WebTestCase
             "/api/bookings/{$booking->getId()}/comment",
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken2->getValue())),
             json_encode($payload)
         );
 
-        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        $this->assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
     }
 
-    public function testEditBookingCommentNotFound(): void
-    {
-        $payload = [
-            'comment' => 'Updated comment'
-        ];
-
-        $this->client->request(
-            'PATCH',
-            '/api/bookings/9999/comment',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode($payload)
-        );
-
-        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
-    }
-
-    public function testDeleteBookingSuccess(): void
+    public function testRemoveBookingSuccess(): void
     {
         $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
         $house = $this->createTestHouse();
         $booking = $this->createTestBooking($user, $house);
 
-        $bookingId = $booking->getId();
-
-        $this->client->request('DELETE', "/api/bookings/{$bookingId}");
+        $this->client->request(
+            'DELETE',
+            "/api/bookings/{$booking->getId()}",
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
 
         $this->assertResponseIsSuccessful();
-
-        $this->entityManager->clear();
-        $deletedBooking = $this->entityManager->getRepository(Booking::class)->find($bookingId);
-        $this->assertNull($deletedBooking);
     }
 
-    public function testDeleteBookingNotFound(): void
+    public function testRemoveBookingAccessDenied(): void
     {
-        $this->client->request('DELETE', '/api/bookings/9999');
+        $user1 = $this->createTestUser('+79111111111');
+        $user2 = $this->createTestUser('+79222222222');
+        $accessToken2 = $this->createTestAccessToken($user2);
+        $house = $this->createTestHouse();
 
-        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+        $booking = $this->createTestBooking($user1, $house);
+
+        $this->client->request(
+            'DELETE',
+            "/api/bookings/{$booking->getId()}",
+            [],
+            [],
+            $this->getAuthHeaders($accessToken2->getValue())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
     }
 }

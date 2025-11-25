@@ -40,5 +40,11 @@
                 <directory name="src/Controller"/>
             </errorLevel>
         </UnusedClass>
+
+        <PossiblyUnusedParam errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/"/>
+            </errorLevel>
+        </PossiblyUnusedParam>
     </issueHandlers>
 </psalm>
