@@ -10,24 +10,42 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use JsonSerializable;
 use Override;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
-class User implements JsonSerializable
+class User implements UserInterface, PasswordAuthenticatedUserInterface, JsonSerializable
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
 
-    #[ORM\Column(name: 'phone_number')]
-    private string $phoneNumber;
+    #[ORM\Column(name: 'phone_number', unique: true)]
+    private ?string $phoneNumber = null;
+
+    #[ORM\Column(name: 'password')]
+    private ?string $password = null;
+
+    #[ORM\Column(name: 'roles', type: 'json')]
+    private array $roles = [];
 
     #[ORM\OneToMany(targetEntity: Booking::class, mappedBy: 'user', cascade: ['remove'])]
     private Collection $bookings;
 
-    public function __construct(string $phoneNumber)
+    public function __construct()
     {
-        $this->phoneNumber = $phoneNumber;
         $this->bookings = new ArrayCollection();
+    }
+
+    #[Override]
+    public function getUserIdentifier(): string
+    {
+        return $this->phoneNumber;
+    }
+
+    #[Override]
+    public function eraseCredentials(): void
+    {
     }
 
     #[Override]
@@ -45,7 +63,7 @@ class User implements JsonSerializable
         return $this->id;
     }
 
-    public function getPhoneNumber(): string
+    public function getPhoneNumber(): ?string
     {
         return $this->phoneNumber;
     }
@@ -53,6 +71,35 @@ class User implements JsonSerializable
     public function setPhoneNumber(string $phoneNumber): static
     {
         $this->phoneNumber = $phoneNumber;
+
+        return $this;
+    }
+
+    #[Override]
+    public function getPassword(): ?string
+    {
+        return $this->password;
+    }
+
+    public function setPassword(string $password): static
+    {
+        $this->password = $password;
+
+        return $this;
+    }
+
+    #[Override]
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';
+
+        return array_unique($roles);
+    }
+
+    public function setRoles(array $roles): static
+    {
+        $this->roles = $roles;
 
         return $this;
     }
@@ -67,17 +114,6 @@ class User implements JsonSerializable
         if (!$this->bookings->contains($booking)) {
             $this->bookings->add($booking);
             $booking->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeBooking(Booking $booking): static
-    {
-        if ($this->bookings->removeElement($booking)) {
-            if ($booking->getUser() === $this) {
-                $booking->setUser(null);
-            }
         }
 
         return $this;
