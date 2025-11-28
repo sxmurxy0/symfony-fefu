@@ -19,7 +19,7 @@ security:
             provider: app_user_provider
             access_token:
                 token_handler: App\Security\AccessTokenHandler
-                token_extractors: header
+                token_extractors: App\Security\AccessTokenExtractor
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
@@ -30,7 +30,10 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
-        # - { path: ^/api, roles: ROLE_USER }
+        - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/users/$, methods: POST, roles: PUBLIC_ACCESS }
+        - { path: ^/api/docs$, roles: PUBLIC_ACCESS }
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:

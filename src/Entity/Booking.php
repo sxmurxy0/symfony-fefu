@@ -4,14 +4,63 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Controller\BookingController;
+use App\Dto\Create\BookingCreateDto;
+use App\Dto\Output\BookingOutputDto;
+use App\Dto\Update\BookingUpdateDto;
 use App\Repository\BookingRepository;
 use Doctrine\ORM\Mapping as ORM;
-use JsonSerializable;
-use Override;
+use Symfony\Component\Validator\Constraints as Assert;
 
+#[ApiResource(
+    routePrefix: '/bookings',
+    paginationEnabled: false,
+    output: BookingOutputDto::class,
+    operations: [
+        new GetCollection(
+            uriTemplate: '/',
+            name: 'get_all_bookings',
+            controller: BookingController::class.'::getAllBookings'
+        ),
+        new GetCollection(
+            routePrefix: '/users',
+            uriTemplate: '/{id}/bookings',
+            name: 'get_user_bookings',
+            controller: BookingController::class.'::getUserBookings'
+        ),
+        new Post(
+            uriTemplate: '/',
+            name: 'create_booking',
+            input: BookingCreateDto::class,
+            controller: BookingController::class.'::createBooking'
+        ),
+        new Get(
+            uriTemplate: '/{id}',
+            name: 'get_booking_detail',
+            controller: BookingController::class.'::getBookingDetail'
+        ),
+        new Delete(
+            uriTemplate: '/{id}',
+            name: 'remove_booking',
+            controller: BookingController::class.'::removeBooking'
+        ),
+        new Patch(
+            uriTemplate: '/{id}',
+            name: 'update_booking',
+            input: BookingUpdateDto::class,
+            controller: BookingController::class.'::updateBooking'
+        )
+    ]
+)]
 #[ORM\Entity(repositoryClass: BookingRepository::class)]
 #[ORM\Table(name: 'bookings')]
-class Booking implements JsonSerializable
+class Booking
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
@@ -24,19 +73,9 @@ class Booking implements JsonSerializable
     #[ORM\JoinColumn(name: 'house_id', nullable: false, onDelete: 'CASCADE')]
     private ?House $house = null;
 
+    #[Assert\NotBlank]
     #[ORM\Column(name: 'comment')]
     private ?string $comment = null;
-
-    #[Override]
-    public function jsonSerialize(): array
-    {
-        return [
-            'id' => $this->id,
-            'user_id' => $this->user?->getId(),
-            'house_id' => $this->house?->getId(),
-            'comment' => $this->comment
-        ];
-    }
 
     public function getId(): ?int
     {
