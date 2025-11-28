@@ -28,7 +28,7 @@ class HouseService
 
     public function remove(?House $house): void
     {
-        if ($house) {
+        if (null !== $house) {
             $this->em->remove($house);
         }
     }

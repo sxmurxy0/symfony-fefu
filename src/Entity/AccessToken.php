@@ -7,13 +7,11 @@ namespace App\Entity;
 use App\Repository\AccessTokenRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
-use JsonSerializable;
-use Override;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: AccessTokenRepository::class)]
 #[ORM\Table(name: 'access_tokens')]
-class AccessToken implements JsonSerializable
+class AccessToken
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
@@ -36,17 +34,6 @@ class AccessToken implements JsonSerializable
         $this->createdAt = new DateTimeImmutable();
     }
 
-    #[Override]
-    public function jsonSerialize(): array
-    {
-        return [
-            'id' => $this->id,
-            'value' => $this->value,
-            'created_at' => $this->createdAt,
-            'is_valid' => $this->isValid()
-        ];
-    }
-
     public function getId(): ?int
     {
         return $this->id;
@@ -60,7 +47,7 @@ class AccessToken implements JsonSerializable
     #[ORM\PrePersist]
     public function generateValue(): void
     {
-        if (!$this->value) {
+        if (null === $this->value) {
             $this->value = bin2hex(random_bytes(32));
         }
     }
@@ -94,8 +81,8 @@ class AccessToken implements JsonSerializable
         return $this;
     }
 
-    public function isValid(): bool
+    public function isExpired(): bool
     {
-        return $this->expiresAt > new DateTimeImmutable();
+        return $this->expiresAt < new DateTimeImmutable();
     }
 }

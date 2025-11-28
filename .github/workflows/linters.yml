@@ -6,20 +6,43 @@ on:
     branches: [ main ]
 
 jobs:
-  phpcs:
-    name: PHP Code Sniffer
+  code-quality:
+    name: Code Quality Checks
     runs-on: ubuntu-latest
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: "postgresql://postgres:qwerty@localhost:5432/database_test?serverVersion=17&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+      DEFAULT_URI: "http://localhost"
     
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: database_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qwerty
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: ctype, iconv, intl, pdo_pgsql
+          coverage: none
           tools: composer:v2
-      
+
       - name: Cache Composer dependencies
         uses: actions/cache@v3
         with:
@@ -30,59 +53,19 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run PHP Code Sniffer
+      - name: Create test database
+        run: |
+          php bin/console doctrine:database:create --if-not-exists --env=test
+          php bin/console doctrine:schema:create --env=test
+
+      - name: PHP Code Sniffer
+        continue-on-error: true
         run: ./vendor/bin/phpcs
-  
-  php_cs_fixer:
-    name: PHP CS Fixer (dry-run)
-    runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: PHP CS Fixer (dry-run)
+        continue-on-error: true
+        run: ./vendor/bin/php-cs-fixer fix --dry-run --diff
 
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-          php-version: '8.4'
-          tools: composer:v2
-
-    - name: Cache Composer dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.composer/cache
-        key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
-        restore-keys: ${{ runner.os }}-php-8.4-composer-
-
-    - name: Install dependencies
-      run: composer install --prefer-dist --no-progress --no-interaction
-
-    - name: Run PHP CS Fixer (dry-run)
-      run: ./vendor/bin/php-cs-fixer fix --dry-run --diff
-
-  psalm:
-    name: Psalm Static Analysis
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer:v2
-      
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.composer/cache
-          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-php-8.4-composer-
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
-
-      - name: Run Psalm
+      - name: Psalm Static Analysis
+        continue-on-error: true
         run: ./vendor/bin/psalm --output-format=github

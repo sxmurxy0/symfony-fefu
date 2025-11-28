@@ -33,7 +33,7 @@ class AccessTokenService
 
     public function remove(?AccessToken $accessToken): void
     {
-        if ($accessToken) {
+        if (null !== $accessToken) {
             $this->em->remove($accessToken);
         }
     }

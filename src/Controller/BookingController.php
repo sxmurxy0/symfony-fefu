@@ -4,110 +4,147 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\Booking;
+use App\Dto\Create\BookingCreateDto;
+use App\Dto\Output\BookingOutputDto;
+use App\Dto\Update\BookingUpdateDto;
 use App\Entity\User;
 use App\Repository\BookingRepository;
 use App\Repository\HouseRepository;
+use App\Repository\UserRepository;
 use App\Service\BookingService;
-use App\Service\HouseService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpException;
-use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[Route('/api/bookings')]
 class BookingController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
         private BookingRepository $bookingRepository,
         private BookingService $bookingService,
-        private HouseRepository $houseRepository,
-        private HouseService $houseService
+        private UserRepository $userRepository,
+        private HouseRepository $houseRepository
     ) {
     }
 
-    #[IsGranted('ROLE_USER')]
-    #[Route('/', methods: ['GET'])]
-    public function getUserBookings(#[CurrentUser] User $user): Response
+    public function getAllBookings(): JsonResponse
     {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            throw new AccessDeniedHttpException('Admin access required.');
+        }
+
+        $bookings = $this->bookingRepository->findAll();
+
+        return $this->json(BookingOutputDto::mapArray($bookings));
+    }
+
+    public function getUserBookings(int $id, #[CurrentUser] User $currentUser): JsonResponse
+    {
+        $user = $this->userRepository->find($id);
+        if (null === $user) {
+            throw new NotFoundHttpException('User not found.');
+        }
+
+        if (!$this->isGranted('ROLE_ADMIN') && $currentUser->getId() != $id) {
+            throw new AccessDeniedHttpException('You can only view your own bookings.');
+        }
+
         $bookings = $user->getBookings()->toArray();
 
-        return $this->json($bookings, Response::HTTP_OK);
+        return $this->json(BookingOutputDto::mapArray($bookings));
     }
 
-    #[IsGranted('ROLE_USER')]
-    #[Route('/create', methods: ['POST'])]
-    public function createBooking(Request $request, #[CurrentUser] User $user): Response
+    public function createBooking(
+        #[MapRequestPayload] BookingCreateDto $dto,
+        #[CurrentUser] User $currentUser
+    ): JsonResponse {
+        $user = $this->userRepository->find($dto->userId);
+        if (null === $user) {
+            throw new NotFoundHttpException('User not found.');
+        }
+
+        if (!$this->isGranted('ROLE_ADMIN') && $currentUser->getId() != $dto->userId) {
+            throw new AccessDeniedHttpException('You can only create bookings for yourself.');
+        }
+
+        $house = $this->houseRepository->find($dto->houseId);
+        if (null === $house) {
+            throw new NotFoundHttpException('House not found.');
+        }
+
+        if (!$this->houseRepository->isAvailable($house->getId())) {
+            throw new ConflictHttpException('House is not available now.');
+        }
+
+        $booking = $this->bookingService->create($user, $house, $dto->comment);
+        $this->em->flush();
+
+        return $this->json(new BookingOutputDto($booking), Response::HTTP_CREATED);
+    }
+
+    public function getBookingDetail(int $id, #[CurrentUser] User $currentUser): JsonResponse
     {
-        $requestData = $request->toArray();
+        $booking = $this->bookingRepository->find($id);
+        if (null === $booking) {
+            throw new NotFoundHttpException('Booking not found.');
+        }
 
         if (
-            !isset($requestData['house_id']) ||
-            !isset($requestData['comment'])
+            !$this->isGranted('ROLE_ADMIN') &&
+            $booking->getUser()->getId() != $currentUser->getId()
         ) {
-            throw new HttpException(Response::HTTP_BAD_REQUEST, 'Missing required params: house_id or comment!');
+            throw new AccessDeniedHttpException('You can only view your own bookings.');
         }
 
-        $houseId = $requestData['house_id'];
-        $comment = $requestData['comment'];
-
-        $house = $this->houseRepository->find($houseId);
-
-        if (!$house) {
-            throw new HttpException(Response::HTTP_NOT_FOUND, 'House with specified house_id not found!');
-        }
-
-        if (!$this->houseRepository->isAvailable($houseId)) {
-            throw new HttpException(Response::HTTP_CONFLICT, 'House with specified house_id is not available now!');
-        }
-
-        $booking = $this->bookingService->create($user, $house, $comment);
-
-        $this->em->flush();
-
-        return $this->json($booking, Response::HTTP_OK);
+        return $this->json(new BookingOutputDto($booking));
     }
 
-    #[IsGranted('ROLE_USER')]
-    #[Route('/{id}/comment', methods: ['PATCH'])]
-    public function editBookingComment(Request $request, Booking $booking, #[CurrentUser] User $user): Response
+    public function removeBooking(int $id, #[CurrentUser] User $currentUser): JsonResponse
     {
-        $requestData = $request->toArray();
-
-        if (!isset($requestData['comment'])) {
-            throw new HttpException(Response::HTTP_BAD_REQUEST, 'Missing required param: comment!');
+        $booking = $this->bookingRepository->find($id);
+        if (null === $booking) {
+            throw new NotFoundHttpException('Booking not found.');
         }
 
-        $comment = $requestData['comment'];
-
-        if (!$user->getBookings()->contains($booking)) {
-            throw new HttpException(Response::HTTP_CONFLICT, 'You don\'t have access to change booking!');
-        }
-
-        $booking->setComment($comment);
-
-        $this->em->flush();
-
-        return $this->json([], Response::HTTP_OK);
-    }
-
-    #[IsGranted('ROLE_USER')]
-    #[Route('/{id}', methods: ['DELETE'])]
-    public function removeBooking(Booking $booking, #[CurrentUser] User $user): Response
-    {
-        if (!$user->getBookings()->contains($booking)) {
-            throw new HttpException(Response::HTTP_CONFLICT, 'You don\'t have access to remove booking!');
+        if (
+            !$this->isGranted('ROLE_ADMIN') &&
+            $booking->getUser()->getId() != $currentUser->getId()
+        ) {
+            throw new AccessDeniedHttpException('You can only delete your own bookings.');
         }
 
         $this->bookingService->remove($booking);
-
         $this->em->flush();
 
-        return $this->json([], Response::HTTP_OK);
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    public function updateBooking(
+        int $id,
+        #[MapRequestPayload] BookingUpdateDto $dto,
+        #[CurrentUser] User $currentUser
+    ): JsonResponse {
+        $booking = $this->bookingRepository->find($id);
+        if (null === $booking) {
+            throw new NotFoundHttpException('Booking not found.');
+        }
+
+        if (
+            !$this->isGranted('ROLE_ADMIN') &&
+            $booking->getUser()->getId() != $currentUser->getId()
+        ) {
+            throw new AccessDeniedHttpException('You can only update your own bookings.');
+        }
+
+        $booking->setComment($dto->comment);
+        $this->em->flush();
+
+        return $this->json(new BookingOutputDto($booking));
     }
 }

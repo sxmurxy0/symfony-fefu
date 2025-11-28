@@ -33,7 +33,7 @@ class UserService
 
     public function remove(?User $user): void
     {
-        if ($user) {
+        if (null !== $user) {
             $this->em->remove($user);
         }
     }
@@ -47,5 +47,12 @@ class UserService
     public function isPasswordValid(User $user, string $plainPassword): bool
     {
         return $this->passwordHasher->isPasswordValid($user, $plainPassword);
+    }
+
+    public function updatePassword(User $user, string $plainPassword): void
+    {
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
+
+        $user->setPassword($hashedPassword);
     }
 }
