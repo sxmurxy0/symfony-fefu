@@ -28,7 +28,7 @@ class BookingServiceTest extends TestCase
     public function testCreate(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12324567890');
         $user->setPassword('password');
 
         $house = new House();
@@ -54,7 +54,7 @@ class BookingServiceTest extends TestCase
     {
         $booking = new Booking();
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345678920');
         $user->setPassword('password');
         $house = new House();
         $house->setSleepingPlaces(2);
@@ -82,7 +82,7 @@ class BookingServiceTest extends TestCase
     {
         $booking = new Booking();
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12324567890');
         $user->setPassword('password');
         $house = new House();
         $house->setSleepingPlaces(2);

@@ -7,11 +7,13 @@ namespace App\Entity;
 use App\Repository\AccessTokenRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Override;
+use Stringable;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: AccessTokenRepository::class)]
 #[ORM\Table(name: 'access_tokens')]
-class AccessToken
+class AccessToken implements Stringable
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
@@ -84,5 +86,11 @@ class AccessToken
     public function isExpired(): bool
     {
         return $this->expiresAt < new DateTimeImmutable();
+    }
+
+    #[Override]
+    public function __toString(): string
+    {
+        return "AccessToken #{$this->id}";
     }
 }

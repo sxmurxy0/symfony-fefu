@@ -18,7 +18,6 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
-use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route('/api/auth')]
 class AuthController extends AbstractController
@@ -28,8 +27,7 @@ class AuthController extends AbstractController
         private UserRepository $userRepository,
         private UserService $userService,
         private AccessTokenRepository $accessTokenRepository,
-        private AccessTokenService $accessTokenService,
-        private SerializerInterface $serializer
+        private AccessTokenService $accessTokenService
     ) {
     }
 

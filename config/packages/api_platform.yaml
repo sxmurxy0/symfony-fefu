@@ -1,5 +1,5 @@
 api_platform:
-    title: Booking API
+    title: Booking API Specification
     version: 1.0.0
     defaults:
         stateless: true

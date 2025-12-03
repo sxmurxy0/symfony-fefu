@@ -12,8 +12,20 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+        admin:
+            pattern: ^/api/admin
+            form_login:
+                login_path: admin_login
+                check_path: admin_login
+                enable_csrf: true
+                username_parameter: phone_number
+                password_parameter: password
+            logout:
+                path: admin_logout
+                target: admin_login
+            provider: app_user_provider
         api:
-            pattern: ^/api
+            pattern: ^/api/
             lazy: true
             stateless: true
             provider: app_user_provider
@@ -21,18 +33,15 @@ security:
                 token_handler: App\Security\AccessTokenHandler
                 token_extractors: App\Security\AccessTokenExtractor
 
-            # activate different ways to authenticate
-            # https://symfony.com/doc/current/security.html#the-firewall
-
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
-
-    # Easy way to control access for large sections of your site
-    # Note: Only the *first* access control that matches will be used
     access_control:
+        - { path: ^/api/admin/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
+
+        - { path: ^/api/docs$, roles: PUBLIC_ACCESS }
+
         - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
         - { path: ^/api/users/$, methods: POST, roles: PUBLIC_ACCESS }
-        - { path: ^/api/docs$, roles: PUBLIC_ACCESS }
+
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
