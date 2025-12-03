@@ -16,5 +16,6 @@ class BookingCreateDto
 
     #[Assert\NotNull]
     #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     public ?string $comment = null;
 }

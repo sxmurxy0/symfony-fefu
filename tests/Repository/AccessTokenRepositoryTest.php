@@ -35,7 +35,7 @@ class AccessTokenRepositoryTest extends KernelTestCase
     public function testFindOneByValue(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345617890');
         $user->setPassword('password');
         $this->entityManager->persist($user);
         $this->entityManager->flush();
@@ -68,7 +68,7 @@ class AccessTokenRepositoryTest extends KernelTestCase
     public function testFindOneByUser(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345617890');
         $user->setPassword('password');
         $this->entityManager->persist($user);
         $this->entityManager->flush();
@@ -91,13 +91,13 @@ class AccessTokenRepositoryTest extends KernelTestCase
     public function testFindOneByUserReturnsNullWhenNotFound(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345671890');
         $user->setPassword('password');
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
         $anotherUser = new User();
-        $anotherUser->setPhoneNumber('+0987654321');
+        $anotherUser->setPhoneNumber('+09876514321');
         $anotherUser->setPassword('password');
         $this->entityManager->persist($anotherUser);
 

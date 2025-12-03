@@ -21,10 +21,10 @@ class UserService
     public function create(string $phoneNumber, string $plainPassword): User
     {
         $user = new User();
-        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
 
         $user->setPhoneNumber($phoneNumber);
-        $user->setPassword($hashedPassword);
+        $user->setPlainPassword($plainPassword);
+        $this->updatePassword($user);
 
         $this->em->persist($user);
 
@@ -49,10 +49,15 @@ class UserService
         return $this->passwordHasher->isPasswordValid($user, $plainPassword);
     }
 
-    public function updatePassword(User $user, string $plainPassword): void
+    public function updatePassword(User $user): void
     {
-        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
+        if (null === $user->getPlainPassword()) {
+            return;
+        }
+
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $user->getPlainPassword());
 
         $user->setPassword($hashedPassword);
+        $user->eraseCredentials();
     }
 }

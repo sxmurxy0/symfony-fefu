@@ -66,7 +66,7 @@ class HouseRepositoryTest extends KernelTestCase
         $this->entityManager->persist($house3);
 
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345267890');
         $user->setPassword('password');
         $this->entityManager->persist($user);
 
@@ -111,7 +111,7 @@ class HouseRepositoryTest extends KernelTestCase
         $this->entityManager->persist($house);
 
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345637890');
         $user->setPassword('password');
         $this->entityManager->persist($user);
 

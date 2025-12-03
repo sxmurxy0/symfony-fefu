@@ -10,56 +10,44 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\HouseController;
 use App\Dto\Create\HouseCreateDto;
 use App\Dto\Output\HouseOutputDto;
 use App\Dto\Update\HouseUpdateDto;
 use App\Repository\HouseRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Override;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ApiResource(
-    routePrefix: '/houses',
     paginationEnabled: false,
     output: HouseOutputDto::class,
     operations: [
         new GetCollection(
-            uriTemplate: '/',
-            name: 'get_all_houses',
-            controller: HouseController::class.'::getAllHouses'
+            routeName: 'get_all_houses'
         ),
         new GetCollection(
-            uriTemplate: '/available',
-            name: 'get_available_houses',
-            controller: HouseController::class.'::getAvailableHouses'
+            routeName: 'get_available_houses'
         ),
         new Post(
-            uriTemplate: '/',
-            name: 'create_house',
-            input: HouseCreateDto::class,
-            controller: HouseController::class.'::createHouse'
+            routeName: 'create_house',
+            input: HouseCreateDto::class
         ),
         new Get(
-            uriTemplate: '/{id}',
-            name: 'get_house_detail',
-            controller: HouseController::class.'::getHouseDetail'
+            routeName: 'get_house_detail'
         ),
         new Delete(
-            uriTemplate: '/{id}',
-            name: 'remove_house',
-            controller: HouseController::class.'::removeHouse'
+            routeName: 'remove_house'
         ),
         new Patch(
-            uriTemplate: '/{id}',
-            name: 'update_house',
-            input: HouseUpdateDto::class,
-            controller: HouseController::class.'::updateHouse'
+            routeName: 'update_house',
+            input: HouseUpdateDto::class
         )
     ]
 )]
 #[ORM\Entity(repositoryClass: HouseRepository::class)]
 #[ORM\Table(name: 'houses')]
-class House
+class House implements Stringable
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
@@ -83,5 +71,11 @@ class House
         $this->sleepingPlaces = $sleepingPlaces;
 
         return $this;
+    }
+
+    #[Override]
+    public function __toString(): string
+    {
+        return "House #{$this->id}";
     }
 }

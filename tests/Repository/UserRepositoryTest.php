@@ -32,7 +32,7 @@ class UserRepositoryTest extends KernelTestCase
 
     public function testFindOneByPhoneNumber(): void
     {
-        $phoneNumber = '+1234567890';
+        $phoneNumber = '+12345367890';
         $user = new User();
         $user->setPhoneNumber($phoneNumber);
         $user->setPassword('password');
@@ -48,7 +48,7 @@ class UserRepositoryTest extends KernelTestCase
 
     public function testFindOneByPhoneNumberReturnsNullWhenNotFound(): void
     {
-        $nonExistentPhoneNumber = '+9999999999';
+        $nonExistentPhoneNumber = '+99999299999';
 
         $foundUser = $this->repository->findOneByPhoneNumber($nonExistentPhoneNumber);
 
@@ -57,7 +57,7 @@ class UserRepositoryTest extends KernelTestCase
 
     public function testExistsWithPhoneNumberReturnsTrueWhenUserExists(): void
     {
-        $phoneNumber = '+1234567890';
+        $phoneNumber = '+12345672890';
         $user = new User();
         $user->setPhoneNumber($phoneNumber);
         $user->setPassword('password');
@@ -71,7 +71,7 @@ class UserRepositoryTest extends KernelTestCase
 
     public function testExistsWithPhoneNumberReturnsFalseWhenUserDoesNotExist(): void
     {
-        $nonExistentPhoneNumber = '+9999999999';
+        $nonExistentPhoneNumber = '+99999993999';
 
         $exists = $this->repository->existsWithPhoneNumber($nonExistentPhoneNumber);
 

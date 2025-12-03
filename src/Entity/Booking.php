@@ -10,57 +10,44 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\BookingController;
 use App\Dto\Create\BookingCreateDto;
 use App\Dto\Output\BookingOutputDto;
 use App\Dto\Update\BookingUpdateDto;
 use App\Repository\BookingRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Override;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ApiResource(
-    routePrefix: '/bookings',
     paginationEnabled: false,
     output: BookingOutputDto::class,
     operations: [
         new GetCollection(
-            uriTemplate: '/',
-            name: 'get_all_bookings',
-            controller: BookingController::class.'::getAllBookings'
+            routeName: 'get_all_bookings'
         ),
         new GetCollection(
-            routePrefix: '/users',
-            uriTemplate: '/{id}/bookings',
-            name: 'get_user_bookings',
-            controller: BookingController::class.'::getUserBookings'
+            routeName: 'get_user_bookings'
         ),
         new Post(
-            uriTemplate: '/',
-            name: 'create_booking',
-            input: BookingCreateDto::class,
-            controller: BookingController::class.'::createBooking'
+            routeName: 'create_booking',
+            input: BookingCreateDto::class
         ),
         new Get(
-            uriTemplate: '/{id}',
-            name: 'get_booking_detail',
-            controller: BookingController::class.'::getBookingDetail'
+            routeName: 'get_booking_detail'
         ),
         new Delete(
-            uriTemplate: '/{id}',
-            name: 'remove_booking',
-            controller: BookingController::class.'::removeBooking'
+            routeName: 'remove_booking'
         ),
         new Patch(
-            uriTemplate: '/{id}',
-            name: 'update_booking',
-            input: BookingUpdateDto::class,
-            controller: BookingController::class.'::updateBooking'
+            routeName: 'update_booking',
+            input: BookingUpdateDto::class
         )
     ]
 )]
 #[ORM\Entity(repositoryClass: BookingRepository::class)]
 #[ORM\Table(name: 'bookings')]
-class Booking
+class Booking implements Stringable
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
@@ -74,6 +61,7 @@ class Booking
     private ?House $house = null;
 
     #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     #[ORM\Column(name: 'comment')]
     private ?string $comment = null;
 
@@ -116,5 +104,11 @@ class Booking
         $this->comment = $comment;
 
         return $this;
+    }
+
+    #[Override]
+    public function __toString(): string
+    {
+        return "Booking #{$this->id}";
     }
 }

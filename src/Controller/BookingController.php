@@ -20,8 +20,10 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
+#[Route('/api/bookings')]
 class BookingController extends AbstractController
 {
     public function __construct(
@@ -33,6 +35,7 @@ class BookingController extends AbstractController
     ) {
     }
 
+    #[Route(path: '/', name: 'get_all_bookings', methods: 'GET')]
     public function getAllBookings(): JsonResponse
     {
         if (!$this->isGranted('ROLE_ADMIN')) {
@@ -44,22 +47,7 @@ class BookingController extends AbstractController
         return $this->json(BookingOutputDto::mapArray($bookings));
     }
 
-    public function getUserBookings(int $id, #[CurrentUser] User $currentUser): JsonResponse
-    {
-        $user = $this->userRepository->find($id);
-        if (null === $user) {
-            throw new NotFoundHttpException('User not found.');
-        }
-
-        if (!$this->isGranted('ROLE_ADMIN') && $currentUser->getId() != $id) {
-            throw new AccessDeniedHttpException('You can only view your own bookings.');
-        }
-
-        $bookings = $user->getBookings()->toArray();
-
-        return $this->json(BookingOutputDto::mapArray($bookings));
-    }
-
+    #[Route(path: '/', name: 'create_booking', methods: 'POST')]
     public function createBooking(
         #[MapRequestPayload] BookingCreateDto $dto,
         #[CurrentUser] User $currentUser
@@ -88,6 +76,7 @@ class BookingController extends AbstractController
         return $this->json(new BookingOutputDto($booking), Response::HTTP_CREATED);
     }
 
+    #[Route(path: '/{id}', name: 'get_booking_detail', methods: 'GET')]
     public function getBookingDetail(int $id, #[CurrentUser] User $currentUser): JsonResponse
     {
         $booking = $this->bookingRepository->find($id);
@@ -105,6 +94,7 @@ class BookingController extends AbstractController
         return $this->json(new BookingOutputDto($booking));
     }
 
+    #[Route(path: '/{id}', name: 'remove_booking', methods: 'DELETE')]
     public function removeBooking(int $id, #[CurrentUser] User $currentUser): JsonResponse
     {
         $booking = $this->bookingRepository->find($id);
@@ -125,6 +115,7 @@ class BookingController extends AbstractController
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
 
+    #[Route(path: '/{id}', name: 'update_booking', methods: 'PATCH')]
     public function updateBooking(
         int $id,
         #[MapRequestPayload] BookingUpdateDto $dto,
