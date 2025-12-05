@@ -17,12 +17,7 @@ class House implements JsonSerializable
     private ?int $id = null;
 
     #[ORM\Column(name: 'sleeping_places')]
-    private int $sleepingPlaces;
-
-    public function __construct(int $sleepingPlaces)
-    {
-        $this->sleepingPlaces = $sleepingPlaces;
-    }
+    private ?int $sleepingPlaces = null;
 
     #[Override]
     public function jsonSerialize(): array
@@ -38,7 +33,7 @@ class House implements JsonSerializable
         return $this->id;
     }
 
-    public function getSleepingPlaces(): int
+    public function getSleepingPlaces(): ?int
     {
         return $this->sleepingPlaces;
     }

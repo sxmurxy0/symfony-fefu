@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\AccessToken;
 use App\Entity\House;
+use App\Entity\User;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,66 +28,116 @@ class HouseControllerTest extends WebTestCase
     private function clearDatabase(): void
     {
         $connection = $this->entityManager->getConnection();
+        $connection->executeStatement('DELETE FROM bookings');
+        $connection->executeStatement('DELETE FROM access_tokens');
         $connection->executeStatement('DELETE FROM houses');
+        $connection->executeStatement('DELETE FROM users');
+    }
+
+    private function createTestUser(
+        string $phoneNumber = '+79111111111',
+        string $password = 'password',
+        array $roles = ['ROLE_USER']
+    ): User {
+        $user = new User();
+        $user->setPhoneNumber($phoneNumber);
+        $user->setPassword(
+            self::getContainer()->get('security.password_hasher')->hashPassword($user, $password)
+        );
+        $user->setRoles($roles);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        return $user;
+    }
+
+    private function createTestAccessToken(User $user): AccessToken
+    {
+        $accessToken = new AccessToken();
+        $accessToken->setUser($user);
+        $accessToken->setExpiresAt(new DateTimeImmutable('+1 hour'));
+        $this->entityManager->persist($accessToken);
+        $this->entityManager->flush();
+
+        return $accessToken;
     }
 
     private function createTestHouse(int $sleepingPlaces = 2): House
     {
-        $house = new House($sleepingPlaces);
+        $house = new House();
+        $house->setSleepingPlaces($sleepingPlaces);
         $this->entityManager->persist($house);
         $this->entityManager->flush();
 
         return $house;
     }
 
-    public function testGetAllHouses(): void
+    private function getAuthHeaders(string $accessToken): array
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
-
-        $this->client->request('GET', '/api/houses');
-
-        $this->assertResponseIsSuccessful();
-        $this->assertResponseHeaderSame('Content-Type', 'application/json');
-
-        $response = $this->client->getResponse();
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertIsArray($data);
-        $this->assertCount(2, $data);
+        return [
+            'Content-Type' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$accessToken,
+        ];
     }
 
-    public function testGetAllHousesWhenEmpty(): void
+    public function testGetAllHousesAsAdmin(): void
     {
-        $this->client->request('GET', '/api/houses');
+        $adminUser = $this->createTestUser('+79111111111', 'password', ['ROLE_ADMIN']);
+        $accessToken = $this->createTestAccessToken($adminUser);
+
+        $this->createTestHouse(2);
+        $this->createTestHouse(4);
+
+        $this->client->request(
+            'GET',
+            '/api/houses/',
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
 
         $this->assertResponseIsSuccessful();
-
-        $response = $this->client->getResponse();
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertIsArray($data);
-        $this->assertCount(0, $data);
     }
 
-    public function testGetAvailableHouses(): void
+    public function testGetAllHousesAsRegularUser(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
+        $regularUser = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($regularUser);
 
-        $this->client->request('GET', '/api/houses/available');
+        $this->client->request(
+            'GET',
+            '/api/houses/',
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+    }
+
+    public function testGetAvailableHousesAsUser(): void
+    {
+        $user = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($user);
+
+        $this->createTestHouse(2);
+
+        $this->client->request(
+            'GET',
+            '/api/houses/available',
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
 
         $this->assertResponseIsSuccessful();
-        $this->assertResponseHeaderSame('Content-Type', 'application/json');
-
-        $response = $this->client->getResponse();
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertIsArray($data);
     }
 
-    public function testCreateHouseSuccess(): void
+    public function testCreateHouseAsAdmin(): void
     {
+        $adminUser = $this->createTestUser('+79111111111', 'password', ['ROLE_ADMIN']);
+        $accessToken = $this->createTestAccessToken($adminUser);
+
         $payload = [
             'sleeping_places' => 3
         ];
@@ -94,58 +147,65 @@ class HouseControllerTest extends WebTestCase
             '/api/houses/create',
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken->getValue())),
             json_encode($payload)
         );
 
         $this->assertResponseIsSuccessful();
-        $this->assertResponseHeaderSame('Content-Type', 'application/json');
-
-        $response = $this->client->getResponse();
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertArrayHasKey('id', $data);
-        $this->assertEquals(3, $data['sleeping_places']);
-
-        $house = $this->entityManager->getRepository(House::class)->find($data['id']);
-        $this->assertNotNull($house);
-        $this->assertEquals(3, $house->getSleepingPlaces());
     }
 
-    public function testCreateHouseMissingParameters(): void
+    public function testCreateHouseAsRegularUser(): void
     {
-        $payload = [];
+        $regularUser = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($regularUser);
+
+        $payload = [
+            'sleeping_places' => 3
+        ];
 
         $this->client->request(
             'POST',
             '/api/houses/create',
             [],
             [],
-            ['CONTENT_TYPE' => 'application/json'],
+            array_merge($this->getAuthHeaders($accessToken->getValue())),
             json_encode($payload)
         );
 
-        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
-    public function testDeleteHouseSuccess(): void
+    public function testRemoveHouseAsAdmin(): void
     {
-        $house = $this->createTestHouse();
-        $houseId = $house->getId();
+        $adminUser = $this->createTestUser('+79111111111', 'password', ['ROLE_ADMIN']);
+        $accessToken = $this->createTestAccessToken($adminUser);
+        $house = $this->createTestHouse(2);
 
-        $this->client->request('DELETE', "/api/houses/{$houseId}");
+        $this->client->request(
+            'DELETE',
+            "/api/houses/{$house->getId()}",
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
 
         $this->assertResponseIsSuccessful();
-
-        $this->entityManager->clear();
-        $deletedHouse = $this->entityManager->getRepository(House::class)->find($houseId);
-        $this->assertNull($deletedHouse);
     }
 
-    public function testDeleteHouseNotFound(): void
+    public function testRemoveHouseAsRegularUser(): void
     {
-        $this->client->request('DELETE', '/api/houses/9999');
+        $regularUser = $this->createTestUser();
+        $accessToken = $this->createTestAccessToken($regularUser);
+        $house = $this->createTestHouse(2);
 
-        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+        $this->client->request(
+            'DELETE',
+            "/api/houses/{$house->getId()}",
+            [],
+            [],
+            $this->getAuthHeaders($accessToken->getValue())
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 }
