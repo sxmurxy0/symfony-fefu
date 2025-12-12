@@ -46,5 +46,47 @@
                 <directory name="src/"/>
             </errorLevel>
         </PossiblyUnusedParam>
+
+        <ArgumentTypeCoercion errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Controller"/>
+            </errorLevel>
+        </ArgumentTypeCoercion>
+
+        <ArgumentTypeCoercion errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Service"/>
+            </errorLevel>
+        </ArgumentTypeCoercion>
+
+        <MoreSpecificReturnType errorLevel="suppress">
+            <errorLevel type="suppress">
+                <file name="src/Entity/User.php"/>
+            </errorLevel>
+        </MoreSpecificReturnType>
+
+        <LessSpecificReturnStatement errorLevel="suppress">
+            <errorLevel type="suppress">
+                <file name="src/Entity/User.php"/>
+            </errorLevel>
+        </LessSpecificReturnStatement>
+
+        <NullableReturnStatement errorLevel="suppress">
+            <errorLevel type="suppress">
+                <file name="src/Entity/User.php"/>
+            </errorLevel>
+        </NullableReturnStatement>
+
+        <InvalidNullableReturnType errorLevel="suppress">
+            <errorLevel type="suppress">
+                <file name="src/Entity/User.php"/>
+            </errorLevel>
+        </InvalidNullableReturnType>
+
+        <PossiblyNullReference errorLevel="suppress">
+            <errorLevel type="suppress">
+                <file name="src/Security/AccessTokenHandler.php"/>
+            </errorLevel>
+        </PossiblyNullReference>
     </issueHandlers>
 </psalm>

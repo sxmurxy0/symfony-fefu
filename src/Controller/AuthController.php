@@ -51,8 +51,6 @@ class AuthController extends AbstractController
 
         $user = $this->userService->create($phoneNumber, $plainPassword);
 
-        $this->em->flush();
-
         $accessToken = $this->accessTokenService->create($user);
 
         $this->em->flush();
