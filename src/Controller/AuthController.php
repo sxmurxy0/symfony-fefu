@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Dto\LoginDto;
+use App\Dto\Output\AccessTokenOutputDto;
 use App\Entity\User;
 use App\Repository\AccessTokenRepository;
 use App\Repository\UserRepository;
@@ -11,12 +13,12 @@ use App\Service\AccessTokenService;
 use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route('/api/auth')]
 class AuthController extends AbstractController
@@ -26,7 +28,8 @@ class AuthController extends AbstractController
         private UserRepository $userRepository,
         private UserService $userService,
         private AccessTokenRepository $accessTokenRepository,
-        private AccessTokenService $accessTokenService
+        private AccessTokenService $accessTokenService,
+        private SerializerInterface $serializer
     ) {
     }
 
@@ -59,49 +62,32 @@ class AuthController extends AbstractController
     }
 
     #[Route('/login', methods: ['POST'])]
-    public function login(Request $request): Response
+    public function login(#[MapRequestPayload] LoginDto $dto): JsonResponse
     {
-        $requestData = $request->toArray();
-
-        if (
-            !isset($requestData['phone_number']) ||
-            !isset($requestData['password'])
-        ) {
-            throw new HttpException(Response::HTTP_BAD_REQUEST, 'Missing required params: phone_number or password!');
+        $user = $this->userRepository->findOneByPhoneNumber($dto->phoneNumber);
+        if (null === $user) {
+            throw new AuthenticationException('User not found.');
         }
 
-        $phoneNumber = $requestData['phone_number'];
-        $plainPassword = $requestData['password'];
-
-        $user = $this->userRepository->findOneByPhoneNumber($phoneNumber);
-
-        if (!$user) {
-            throw new HttpException(Response::HTTP_NOT_FOUND, 'User with specified phone_number not found!');
-        }
-
-        if (!$this->userService->isPasswordValid($user, $plainPassword)) {
-            throw new HttpException(Response::HTTP_UNAUTHORIZED, 'Wrong password!');
+        if (!$this->userService->isPasswordValid($user, $dto->password)) {
+            throw new AuthenticationException('Invalid password.');
         }
 
         $this->accessTokenService->removeByUser($user);
-
         $this->em->flush();
 
         $accessToken = $this->accessTokenService->create($user);
-
         $this->em->flush();
 
-        return $this->json($accessToken, Response::HTTP_OK);
+        return $this->json(new AccessTokenOutputDto($accessToken));
     }
 
-    #[IsGranted('ROLE_USER')]
     #[Route('/logout', methods: ['POST'])]
-    public function logout(#[CurrentUser] User $user): Response
+    public function logout(#[CurrentUser] User $currentUser): JsonResponse
     {
-        $this->accessTokenService->removeByUser($user);
-
+        $this->accessTokenService->removeByUser($currentUser);
         $this->em->flush();
 
-        return $this->json([], Response::HTTP_OK);
+        return new JsonResponse();
     }
 }

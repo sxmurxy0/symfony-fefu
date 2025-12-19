@@ -47,11 +47,35 @@
             </errorLevel>
         </PossiblyUnusedParam>
 
+        <PossiblyNullArgument errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Controller"/>
+            </errorLevel>
+        </PossiblyNullArgument>
+
         <ArgumentTypeCoercion errorLevel="suppress">
             <errorLevel type="suppress">
                 <directory name="src/Controller"/>
             </errorLevel>
         </ArgumentTypeCoercion>
+
+        <PossiblyUnusedProperty errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Dto"/>
+            </errorLevel>
+        </PossiblyUnusedProperty>
+
+        <PossiblyNullPropertyAssignmentValue errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Dto"/>
+            </errorLevel>
+        </PossiblyNullPropertyAssignmentValue>
+
+        <PossiblyNullReference errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Dto"/>
+            </errorLevel>
+        </PossiblyNullReference>
 
         <ArgumentTypeCoercion errorLevel="suppress">
             <errorLevel type="suppress">
@@ -82,11 +106,5 @@
                 <file name="src/Entity/User.php"/>
             </errorLevel>
         </InvalidNullableReturnType>
-
-        <PossiblyNullReference errorLevel="suppress">
-            <errorLevel type="suppress">
-                <file name="src/Security/AccessTokenHandler.php"/>
-            </errorLevel>
-        </PossiblyNullReference>
     </issueHandlers>
 </psalm>

@@ -34,7 +34,7 @@ class BookingService
 
     public function remove(?Booking $booking): void
     {
-        if ($booking) {
+        if (null !== $booking) {
             $this->em->remove($booking);
         }
     }

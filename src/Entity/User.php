@@ -4,25 +4,71 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Controller\UserController;
+use App\Dto\Create\UserCreateDto;
+use App\Dto\Output\UserOutputDto;
+use App\Dto\Update\UserUpdateDto;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use JsonSerializable;
 use Override;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Validator\Constraints as Assert;
 
+#[ApiResource(
+    routePrefix: '/users',
+    paginationEnabled: false,
+    output: UserOutputDto::class,
+    operations: [
+        new GetCollection(
+            uriTemplate: '/',
+            name: 'get_all_users',
+            controller: UserController::class.'::getAllUsers'
+        ),
+        new Post(
+            uriTemplate: '/',
+            name: 'create_user',
+            input: UserCreateDto::class,
+            controller: UserController::class.'::createUser'
+        ),
+        new Get(
+            uriTemplate: '/{id}',
+            name: 'get_user_detail',
+            controller: UserController::class.'::getUserDetail'
+        ),
+        new Delete(
+            uriTemplate: '/{id}',
+            name: 'remove_user',
+            controller: UserController::class.'::removeUser'
+        ),
+        new Patch(
+            uriTemplate: '/{id}',
+            name: 'update_user',
+            input: UserUpdateDto::class,
+            controller: UserController::class.'::updateUser'
+        )
+    ]
+)]
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface, JsonSerializable
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(name: 'id')]
     private ?int $id = null;
 
-    #[ORM\Column(name: 'phone_number', unique: true)]
+    #[Assert\Length(exactly: 12)]
+    #[ORM\Column(name: 'phone_number', length: 12, unique: true)]
     private ?string $phoneNumber = null;
 
+    #[Assert\NotBlank]
     #[ORM\Column(name: 'password')]
     private ?string $password = null;
 
@@ -46,16 +92,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, JsonSer
     #[Override]
     public function eraseCredentials(): void
     {
-    }
-
-    #[Override]
-    public function jsonSerialize(): array
-    {
-        return [
-            'id' => $this->id,
-            'phone_number' => $this->phoneNumber,
-            'bookings_count' => $this->bookings->count(),
-        ];
     }
 
     public function getId(): ?int
