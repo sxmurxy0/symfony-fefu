@@ -33,6 +33,34 @@ class AuthController extends AbstractController
     ) {
     }
 
+    #[Route('/register', methods: ['POST'])]
+    public function register(Request $request): Response
+    {
+        $requestData = $request->toArray();
+
+        if (
+            !isset($requestData['phone_number']) ||
+            !isset($requestData['password'])
+        ) {
+            throw new HttpException(Response::HTTP_BAD_REQUEST, 'Missing required params: phone_number or password!');
+        }
+
+        $phoneNumber = $requestData['phone_number'];
+        $plainPassword = $requestData['password'];
+
+        if ($this->userRepository->existsWithPhoneNumber($phoneNumber)) {
+            throw new HttpException(Response::HTTP_CONFLICT, 'User with specified phone_number already exists!');
+        }
+
+        $user = $this->userService->create($phoneNumber, $plainPassword);
+
+        $accessToken = $this->accessTokenService->create($user);
+
+        $this->em->flush();
+
+        return $this->json($accessToken, Response::HTTP_OK);
+    }
+
     #[Route('/login', methods: ['POST'])]
     public function login(#[MapRequestPayload] LoginDto $dto): JsonResponse
     {
