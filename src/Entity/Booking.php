@@ -25,14 +25,7 @@ class Booking implements JsonSerializable
     private ?House $house = null;
 
     #[ORM\Column(name: 'comment')]
-    private string $comment;
-
-    public function __construct(?User $user, ?House $house, string $comment)
-    {
-        $this->user = $user;
-        $this->house = $house;
-        $this->comment = $comment;
-    }
+    private ?string $comment = null;
 
     #[Override]
     public function jsonSerialize(): array
@@ -55,7 +48,7 @@ class Booking implements JsonSerializable
         return $this->user;
     }
 
-    public function setUser(?User $user): static
+    public function setUser(User $user): static
     {
         $this->user = $user;
 
@@ -67,14 +60,14 @@ class Booking implements JsonSerializable
         return $this->house;
     }
 
-    public function setHouse(?House $house): static
+    public function setHouse(House $house): static
     {
         $this->house = $house;
 
         return $this;
     }
 
-    public function getComment(): string
+    public function getComment(): ?string
     {
         return $this->comment;
     }

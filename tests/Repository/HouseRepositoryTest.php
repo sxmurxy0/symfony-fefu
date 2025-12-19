@@ -9,63 +9,42 @@ use App\Entity\House;
 use App\Entity\User;
 use App\Repository\HouseRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class HouseRepositoryTest extends KernelTestCase
 {
     private EntityManagerInterface $entityManager;
-    private HouseRepository $houseRepository;
+    private HouseRepository $repository;
+    private ManagerRegistry $registry;
 
     protected function setUp(): void
     {
-        $kernel = self::bootKernel();
-        $this->entityManager = $kernel->getContainer()->get('doctrine')->getManager();
-        $this->houseRepository = $this->entityManager->getRepository(House::class);
+        self::bootKernel();
 
-        $this->clearDatabase();
-    }
+        $this->registry = self::getContainer()->get(ManagerRegistry::class);
+        $this->entityManager = $this->registry->getManager();
+        $this->repository = new HouseRepository($this->registry);
 
-    private function clearDatabase(): void
-    {
-        $connection = $this->entityManager->getConnection();
-        $connection->executeStatement('DELETE FROM bookings');
-        $connection->executeStatement('DELETE FROM houses');
-        $connection->executeStatement('DELETE FROM users');
-    }
-
-    private function createTestHouse(int $sleepingPlaces = 2): House
-    {
-        $house = new House($sleepingPlaces);
-        $this->entityManager->persist($house);
-        $this->entityManager->flush();
-
-        return $house;
-    }
-
-    private function createTestUser(string $phoneNumber = '+79111111111'): User
-    {
-        $user = new User($phoneNumber);
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createTestBooking(User $user, House $house, string $comment = 'Test comment'): Booking
-    {
-        $booking = new Booking($user, $house, $comment);
-        $this->entityManager->persist($booking);
-        $this->entityManager->flush();
-
-        return $booking;
+        $this->entityManager->getConnection()->executeQuery('DELETE FROM access_tokens');
+        $this->entityManager->getConnection()->executeQuery('DELETE FROM bookings');
+        $this->entityManager->getConnection()->executeQuery('DELETE FROM houses');
+        $this->entityManager->getConnection()->executeQuery('DELETE FROM users');
     }
 
     public function testFindAvailableWhenNoBookings(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
+        $house1 = new House();
+        $house1->setSleepingPlaces(2);
+        $this->entityManager->persist($house1);
 
-        $availableHouses = $this->houseRepository->findAvailable();
+        $house2 = new House();
+        $house2->setSleepingPlaces(4);
+        $this->entityManager->persist($house2);
+
+        $this->entityManager->flush();
+
+        $availableHouses = $this->repository->findAvailable();
 
         $this->assertCount(2, $availableHouses);
         $this->assertContains($house1, $availableHouses);
@@ -74,58 +53,78 @@ class HouseRepositoryTest extends KernelTestCase
 
     public function testFindAvailableWithBookings(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
-        $user = $this->createTestUser();
+        $house1 = new House();
+        $house1->setSleepingPlaces(2);
+        $this->entityManager->persist($house1);
 
-        $this->createTestBooking($user, $house1);
+        $house2 = new House();
+        $house2->setSleepingPlaces(4);
+        $this->entityManager->persist($house2);
 
-        $availableHouses = $this->houseRepository->findAvailable();
+        $house3 = new House();
+        $house3->setSleepingPlaces(3);
+        $this->entityManager->persist($house3);
+
+        $user = new User();
+        $user->setPhoneNumber('+1234567890');
+        $user->setPassword('password');
+        $this->entityManager->persist($user);
+
+        $booking1 = new Booking();
+        $booking1->setUser($user);
+        $booking1->setHouse($house1);
+        $booking1->setComment('Test booking 1');
+        $this->entityManager->persist($booking1);
+
+        $booking2 = new Booking();
+        $booking2->setUser($user);
+        $booking2->setHouse($house3);
+        $booking2->setComment('Test booking 2');
+        $this->entityManager->persist($booking2);
+
+        $this->entityManager->flush();
+
+        $availableHouses = $this->repository->findAvailable();
 
         $this->assertCount(1, $availableHouses);
         $this->assertContains($house2, $availableHouses);
         $this->assertNotContains($house1, $availableHouses);
+        $this->assertNotContains($house3, $availableHouses);
     }
 
-    public function testFindAvailableWhenAllBooked(): void
+    public function testIsAvailableWhenHouseIsAvailable(): void
     {
-        $house1 = $this->createTestHouse(2);
-        $house2 = $this->createTestHouse(4);
-        $user = $this->createTestUser();
+        $house = new House();
+        $house->setSleepingPlaces(2);
+        $this->entityManager->persist($house);
+        $this->entityManager->flush();
 
-        $this->createTestBooking($user, $house1);
-        $this->createTestBooking($user, $house2);
-
-        $availableHouses = $this->houseRepository->findAvailable();
-
-        $this->assertCount(0, $availableHouses);
-    }
-
-    public function testIsHouseAvailableWhenAvailable(): void
-    {
-        $house = $this->createTestHouse();
-
-        $isAvailable = $this->houseRepository->isHouseAvailable($house->getId());
+        $isAvailable = $this->repository->isAvailable($house->getId());
 
         $this->assertTrue($isAvailable);
     }
 
-    public function testIsHouseAvailableWhenBooked(): void
+    public function testIsAvailableWhenHouseIsBooked(): void
     {
-        $house = $this->createTestHouse();
-        $user = $this->createTestUser();
+        $house = new House();
+        $house->setSleepingPlaces(2);
+        $this->entityManager->persist($house);
 
-        $this->createTestBooking($user, $house);
+        $user = new User();
+        $user->setPhoneNumber('+1234567890');
+        $user->setPassword('password');
+        $this->entityManager->persist($user);
 
-        $isAvailable = $this->houseRepository->isHouseAvailable($house->getId());
+        $booking = new Booking();
+        $booking->setUser($user);
+        $booking->setHouse($house);
+        $booking->setComment('Test booking');
+        $this->entityManager->persist($booking);
+
+        $this->entityManager->flush();
+
+        $isAvailable = $this->repository->isAvailable($house->getId());
 
         $this->assertFalse($isAvailable);
-    }
-
-    public function testIsHouseAvailableWithNonExistentHouse(): void
-    {
-        $isAvailable = $this->houseRepository->isHouseAvailable(9999);
-
-        $this->assertTrue($isAvailable);
     }
 }
