@@ -28,7 +28,7 @@ class UserServiceTest extends TestCase
 
     public function testCreate(): void
     {
-        $phoneNumber = '+1234567890';
+        $phoneNumber = '+12345678901';
         $plainPassword = 'password123';
         $hashedPassword = 'hashed_password_123';
 
@@ -53,7 +53,7 @@ class UserServiceTest extends TestCase
     public function testRemoveWithUser(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345678901');
         $user->setPassword('password');
 
         $this->entityManager
@@ -76,7 +76,7 @@ class UserServiceTest extends TestCase
     public function testRemoveByIdWhenUserExists(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345672890');
         $user->setPassword('password');
 
         $this->repository
@@ -111,7 +111,7 @@ class UserServiceTest extends TestCase
     public function testIsPasswordValid(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12134567890');
         $user->setPassword('hashed_password');
         $plainPassword = 'password123';
 
@@ -129,7 +129,7 @@ class UserServiceTest extends TestCase
     public function testIsPasswordInvalid(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345627890');
         $user->setPassword('hashed_password');
         $plainPassword = 'wrong_password';
 

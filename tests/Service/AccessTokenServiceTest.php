@@ -28,7 +28,7 @@ class AccessTokenServiceTest extends TestCase
     public function testCreate(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345617890');
         $user->setPassword('password');
 
         $expiresAt = new DateTimeImmutable('+7 days');
@@ -48,7 +48,7 @@ class AccessTokenServiceTest extends TestCase
     public function testCreateWithDefaultExpiresAt(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12345678290');
         $user->setPassword('password');
 
         $this->entityManager
@@ -66,7 +66,7 @@ class AccessTokenServiceTest extends TestCase
     {
         $accessToken = new AccessToken();
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12342567890');
         $user->setPassword('password');
         $accessToken->setUser($user);
 
@@ -90,7 +90,7 @@ class AccessTokenServiceTest extends TestCase
     public function testRemoveByUserWhenTokenExists(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12342567890');
         $user->setPassword('password');
 
         $accessToken = new AccessToken();
@@ -113,7 +113,7 @@ class AccessTokenServiceTest extends TestCase
     public function testRemoveByUserWhenTokenDoesNotExist(): void
     {
         $user = new User();
-        $user->setPhoneNumber('+1234567890');
+        $user->setPhoneNumber('+12234567890');
         $user->setPassword('password');
 
         $this->repository
